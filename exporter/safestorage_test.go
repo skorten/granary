@@ -175,7 +175,7 @@ func TestDecryptCache(t *testing.T) {
 		}
 	})
 
-	t.Run("returns actionable error mentioning the keychain entry when keychain fails", func(t *testing.T) {
+	t.Run("returns an actionable, plain-language error when keychain fails", func(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, dir, dekFileName, []byte("v10garbage"))
 		encPath := writeFile(t, dir, "cache-v6.json.enc", []byte("ignored"))
@@ -189,8 +189,9 @@ func TestDecryptCache(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error when keychain lookup fails")
 		}
-		if !strings.Contains(err.Error(), keychainService) {
-			t.Errorf("error should name the keychain entry %q, got: %v", keychainService, err)
+		msg := strings.ToLower(err.Error())
+		if !strings.Contains(msg, "granola") || !strings.Contains(msg, "sign") {
+			t.Errorf("error should tell the user to install/sign in to Granola, got: %v", err)
 		}
 	})
 }

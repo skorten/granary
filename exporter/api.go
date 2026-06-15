@@ -41,7 +41,7 @@ func AccessToken(supportDir string) (string, error) {
 	} else if b, err := os.ReadFile(plainPath); err == nil {
 		data = b
 	} else {
-		return "", fmt.Errorf("no Granola credentials found (looked for %s and %s)", encPath, plainPath)
+		return "", fmt.Errorf("couldn't find your Granola login on this Mac. Make sure the Granola app is installed and you've signed in at least once, then try again")
 	}
 
 	var outer struct {
@@ -168,13 +168,16 @@ func (c *APIClient) FetchState() (*CacheState, error) {
 	sort.Strings(ids)
 
 	var skipped int
-	for _, id := range ids {
+	total := len(ids)
+	for i, id := range ids {
+		fmt.Fprintf(os.Stderr, "\rDownloading transcripts... %d/%d", i+1, total)
 		segs, err := c.fetchTranscript(id)
 		if err != nil {
 			if errors.Is(err, ErrUnauthorized) {
+				fmt.Fprintln(os.Stderr)
 				return nil, err
 			}
-			fmt.Fprintf(os.Stderr, "warning: skipping transcript for %s: %v\n", id, err)
+			fmt.Fprintf(os.Stderr, "\nwarning: skipping transcript for %s: %v\n", id, err)
 			skipped++
 			continue
 		}
@@ -182,8 +185,11 @@ func (c *APIClient) FetchState() (*CacheState, error) {
 			state.Transcripts[id] = segs
 		}
 	}
+	if total > 0 {
+		fmt.Fprintln(os.Stderr) // finish the progress line
+	}
 	if skipped > 0 {
-		fmt.Fprintf(os.Stderr, "warning: %d transcript(s) could not be fetched and were skipped\n", skipped)
+		fmt.Fprintf(os.Stderr, "warning: %d transcript(s) could not be downloaded and were skipped\n", skipped)
 	}
 
 	return state, nil
@@ -226,7 +232,7 @@ func (c *APIClient) post(path, jsonBody string) ([]byte, error) {
 
 	resp, err := hc.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("calling Granola API %s: %w", path, err)
+		return nil, fmt.Errorf("couldn't reach Granola's servers. Check your internet connection and try again (details: %w)", err)
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)

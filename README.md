@@ -1,95 +1,170 @@
 # Granary
 
-Exports full meeting transcripts from [Granola](https://www.granola.so) to markdown files.
+Saves your [Granola](https://www.granola.so) meeting transcripts as plain text (markdown) files on your Mac.
 
-Granary fetches your meetings and their transcripts from Granola's API and writes one markdown file per meeting. It reads your existing Granola login from the app's local config (no separate sign-in), only writes changed files, and preserves previously exported transcripts. A built-in macOS LaunchAgent can run exports automatically every 2 hours.
+Each meeting becomes one file named like `2026-05-14_Team Standup.md`, saved in a folder you can open in Finder. Granary uses your existing Granola login — there's no separate sign-up or password.
 
-> **Heads up:** Granary now talks to Granola's private, undocumented API and uses your locally stored Granola access token. This is unsupported and can break at any time. Read [How it works](#-how-it-works) and [Caveats](#-caveats) before using it.
+> Granary is a small command-line tool. You'll need to open the **Terminal** app and type a couple of commands. If you've never used Terminal, that's okay — the steps below tell you exactly what to type.
 
-## 🛠️ Installation
+## ✅ Before you start
 
-### Homebrew
+- A Mac.
+- The [Granola app](https://www.granola.so) installed and **signed in**, with your meetings synced at least once. Granary reads your login from the Granola app, so Granola must be set up first.
 
-```bash
-brew install wassimk/tap/granary
-```
+## ⬇️ Install (download — easiest)
 
-### From source
+1. Go to the [**Releases** page](https://github.com/skorten/granary/releases).
+2. Under the latest release, open **Assets** and download the file for your Mac:
+   - Apple Silicon (M1/M2/M3/M4): `granary-Darwin-arm64.tar.gz`
+   - Older Intel Macs: `granary-Darwin-amd64.tar.gz`
+   - Not sure? Click the Apple menu  → **About This Mac**. "Apple M…" means Apple Silicon.
+3. Double-click the downloaded `.tar.gz` in Finder to unzip it. You'll get a file named `granary`.
 
-```bash
-go install github.com/wassimk/granary@latest
-```
-
-## 💻 Usage
-
-### Export transcripts
+**macOS will warn that the app is from an unidentified developer.** That's expected — Granary isn't signed with a paid Apple certificate. To allow it, open **Terminal** (press `Command`+`Space`, type `Terminal`, press Return) and run these lines one at a time:
 
 ```bash
-granary run
+mkdir -p ~/bin
+mv ~/Downloads/granary ~/bin/granary
+chmod +x ~/bin/granary
+xattr -d com.apple.quarantine ~/bin/granary
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
 ```
 
-By default, Granary reads your Granola access token from `~/Library/Application Support/Granola/` (see [How it works](#-how-it-works)), fetches your meetings and transcripts from Granola's API, and exports markdown files to `~/.local/share/granola-transcripts/`. Each file is named `YYYY-MM-DD_Meeting_Title.md`.
+(That moves the program into a `bin` folder in your home folder, marks it as safe to run, and tells your Mac where to find it. You only do this once.)
 
-#### Options
+Check it worked:
 
+```bash
+granary version
 ```
--o, --output-dir   Custom output directory (default: ~/.local/share/granola-transcripts)
+
+If you see a version number, you're ready.
+
+## 🧑‍💻 Install (build from source — for developers)
+
+Requires [Go](https://go.dev/dl/).
+
+```bash
+git clone https://github.com/skorten/granary.git
+cd granary
+go install .
 ```
 
-### Background service (LaunchAgent)
+This installs `granary` into `$(go env GOPATH)/bin` (usually `~/go/bin`). If `granary` isn't found afterward, add that folder to your `PATH`:
 
-Install a macOS LaunchAgent that automatically exports every 2 hours:
+```bash
+echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+## 💻 Use it
+
+Export your transcripts:
+
+```bash
+granary
+```
+
+(You can also write `granary run` — they do the same thing.)
+
+Granary connects to Granola, downloads your transcripts, and saves them. When it finishes, it prints the folder where your files are.
+
+### Where your files go
+
+By default, transcripts are saved to **`~/Documents/Granola Transcripts`** — open Finder, click **Documents**, then **Granola Transcripts**.
+
+To open that folder automatically when the export finishes, add `--open`:
+
+```bash
+granary --open
+```
+
+To use a different folder:
+
+```bash
+granary -o ~/Desktop/My\ Transcripts
+```
+
+### Run it automatically every 2 hours
+
+Turn on automatic background backups:
 
 ```bash
 granary install
 ```
 
-Check the service status:
+Then:
 
 ```bash
-granary status
+granary status      # check whether automatic backups are on
+granary uninstall   # turn them off
 ```
 
-Remove the background service:
+## ⚠️ Good to know
+
+Granary works today, but a few honest caveats:
+
+- **It uses an unofficial Granola feature.** Granary talks to Granola's private, undocumented service (`api.granola.ai`) — the same one the Granola app uses. Granola could change or remove it at any time, which would stop Granary from working. This project is not affiliated with Granola.
+- **It uses your existing Granola login.** Granary reads your login from the Granola app on your Mac and uses it to download *your* transcripts from *your* account. Your login is never saved by Granary and is only ever sent to Granola's own servers. Nothing is shared with anyone else.
+- **Keep your Granola login fresh.** If your login has expired, Granary will say so — just open the Granola app, let it load, and run Granary again.
+- **It contacts Granola every time it runs.** Including each automatic background run.
+- **macOS only.**
+
+## 🛟 Troubleshooting
+
+**"granary: command not found"**
+Your Mac doesn't know where the program is. Make sure you ran the `export PATH=...` line during install, then either open a new Terminal window or run `source ~/.zshrc`. If you use the older `bash` shell instead of `zsh`, use `~/.bash_profile` in place of `~/.zshrc`. As a quick test you can always run it by full path: `~/bin/granary`.
+
+**"granary" cannot be opened because it is from an unidentified developer** (or "Apple could not verify it is free of malware")
+macOS quarantined the download. Clear it in Terminal:
 
 ```bash
-granary uninstall
+xattr -d com.apple.quarantine ~/bin/granary
 ```
 
-### Other commands
+If you downloaded it somewhere else, point that command at wherever `granary` actually is. Alternatively, in Finder: right-click the file → **Open** → **Open**, or go to **System Settings → Privacy & Security** and click **Open Anyway**.
+
+**"zsh: permission denied: granary"**
+The file isn't marked runnable. Fix it with:
 
 ```bash
-granary version    # Show version
-granary help       # Show help
+chmod +x ~/bin/granary
 ```
 
-## ⚙️ How it works
+**"couldn't find your Granola login on this Mac"**
+The Granola app isn't set up yet. Install [Granola](https://www.granola.so), sign in, let it sync at least one meeting, then run Granary again.
 
-Granola encrypts its local cache and no longer stores meeting documents in a file Granary can read. To export your transcripts, Granary uses Granola's **private, undocumented API**:
+**"your access token is missing or expired" / "open the Granola app to refresh it"**
+Your Granola login has expired. Open the Granola app, wait for it to finish loading, then run Granary again.
 
-1. It reads your Granola access token from `~/Library/Application Support/Granola/supabase.json.enc`, decrypting it with the key from your macOS Keychain entry `Granola Safe Storage` (the same mechanism the Granola app uses). It falls back to the plaintext `supabase.json` if present.
-2. It calls `https://api.granola.ai` to list your meetings (`/v2/get-documents`) and fetch each meeting's transcript (`/v1/get-document-transcript`), sending your token as a bearer credential and a client-version header derived from your installed Granola app.
-3. It writes one markdown file per meeting to the output directory.
+**"couldn't reach Granola's servers"**
+Check your internet connection and try again. If you're on a VPN or restricted network, that may be blocking the connection.
 
-Granary only requests transcript data; it does not export Granola's AI-generated notes.
+**"No meetings were found"**
+Granary connected fine but Granola has no meetings to export yet. Record or open a meeting in Granola, let it sync, then try again.
 
-## ⚠️ Caveats
+**I can't find my exported files**
+They're in `~/Documents/Granola Transcripts` by default. In Finder, click **Documents** in the sidebar, then open **Granola Transcripts**. Or run `granary --open` to open the folder automatically when the export finishes.
 
-Please understand these before relying on Granary:
+**The download is a `.tar.gz` and macOS won't let me open the unzipped file**
+Some browsers quarantine the archive too. After unzipping and moving `granary` into place, the `xattr -d com.apple.quarantine` step above clears it.
 
-- **Unofficial API.** `api.granola.ai` is private and undocumented. Granola can change, restrict, or remove it at any time with no warning, which will break Granary. This project is not affiliated with Granola (see [Disclaimer](#-disclaimer)).
-- **Uses your credentials.** Granary reads your Granola access token from disk and sends it to Granola's servers. It only ever accesses your own account and your own data, and the token is never written to logs or output, but you are using your login outside the official app.
-- **Network on every run.** Each `granary run` makes one API call to list meetings (paginated) plus one call per meeting to fetch its transcript. With many meetings that is many requests per run — including each automatic LaunchAgent run every 2 hours.
-- **Token expiry.** If your token has expired, Granary fails with a clear message. There is no refresh endpoint — open the Granola app to sign in again, then re-run.
-- **Client-version header.** Granola may reject requests that don't carry a recognized client version. Granary sends your installed app's version (or a built-in fallback); if Granola tightens this check, requests may start failing.
-- **macOS only.** Granary depends on the macOS Keychain and Granola's macOS file locations.
-- **Terms of service.** Using an undocumented API may conflict with Granola's terms. Use Granary responsibly, only with your own account, and at your own risk.
+## ⚙️ How it works (for the curious)
 
-## 📄 Output format
+Granola encrypted its local files, so Granary can no longer read meetings from a file on disk. Instead it:
+
+1. Reads your Granola access token from `~/Library/Application Support/Granola/supabase.json.enc`, decrypting it with your macOS Keychain (the same mechanism the Granola app uses).
+2. Calls `https://api.granola.ai` to list your meetings (`/v2/get-documents`) and download each transcript (`/v1/get-document-transcript`), sending your token and a client-version header from your installed Granola app.
+3. Writes one markdown file per meeting.
+
+Granary downloads transcripts only — it does not export Granola's AI-generated notes. Once a transcript is saved, Granary preserves it on future runs even if Granola later returns nothing for that meeting, so you don't lose data.
+
+### Output format
 
 ```markdown
 # Meeting Title
-Date: 2025-01-24 14:30
+Date: 2026-05-14 14:30
 Meeting ID: abc-123
 
 ---
@@ -101,8 +176,10 @@ Meeting ID: abc-123
 **Them:** [Other participant's words]
 ```
 
-Once Granary exports a transcript, it preserves it: on future runs it keeps any previously exported transcript if the API returns nothing for that meeting, so you never lose data.
-
 ## 📝 Disclaimer
 
 This project is not affiliated with, endorsed by, or connected to [Granola](https://www.granola.so) in any way. I love Granola and use it every day. This is just a personal utility to export my meeting data.
+
+## 🍴 Credits
+
+Originally forked from [wassimk/granary](https://github.com/wassimk/granary), then rewritten to fetch transcripts from Granola's API after Granola encrypted its local cache.

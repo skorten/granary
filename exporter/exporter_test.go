@@ -7,6 +7,15 @@ import (
 	"testing"
 )
 
+func TestDefaultOutputDir(t *testing.T) {
+	got := DefaultOutputDir()
+	home, _ := os.UserHomeDir()
+	want := filepath.Join(home, "Documents", "Granola Transcripts")
+	if got != want {
+		t.Errorf("DefaultOutputDir() = %q, want %q", got, want)
+	}
+}
+
 func TestExportFilePermissions(t *testing.T) {
 	t.Run("writes private transcript files 0600 in a 0700 directory", func(t *testing.T) {
 		tmpDir := filepath.Join(t.TempDir(), "out")
@@ -255,11 +264,4 @@ Meeting ID: doc1
 			t.Error("Output directory was not created")
 		}
 	})
-}
-
-func TestDefaultOutputDir(t *testing.T) {
-	dir := DefaultOutputDir()
-	if !strings.Contains(dir, ".local") || !strings.Contains(dir, "granola-transcripts") {
-		t.Errorf("Unexpected default output dir: %s", dir)
-	}
 }
