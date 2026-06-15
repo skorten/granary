@@ -41,7 +41,7 @@ func DefaultOutputDir() string {
 // Export exports all exportable documents from the cache state.
 func (e *Exporter) Export(state *CacheState, verbose bool) (*ExportResult, error) {
 	// Ensure output directory exists
-	if err := os.MkdirAll(e.OutputDir, 0755); err != nil {
+	if err := os.MkdirAll(e.OutputDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -161,7 +161,7 @@ func (e *Exporter) exportDocument(doc *Document, transcripts map[string][]Transc
 	}
 
 	// Write the file
-	if err := os.WriteFile(outputPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
