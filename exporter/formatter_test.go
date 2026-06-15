@@ -210,6 +210,22 @@ func TestFormatDocumentMarkdown(t *testing.T) {
 	})
 }
 
+func TestParseTimestamp(t *testing.T) {
+	if _, ok := parseTimestamp(""); ok {
+		t.Error("empty string should not parse")
+	}
+	if _, ok := parseTimestamp("not-a-date"); ok {
+		t.Error("garbage should not parse")
+	}
+	got, ok := parseTimestamp("2026-01-21T20:30:01.410Z")
+	if !ok {
+		t.Fatal("expected RFC3339-with-millis to parse")
+	}
+	if got.Year() != 2026 || got.Month() != 1 || got.Day() != 21 {
+		t.Errorf("parsed wrong date: %v", got)
+	}
+}
+
 func TestFormatDate(t *testing.T) {
 	tests := []struct {
 		name      string

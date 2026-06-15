@@ -60,65 +60,42 @@ func FormatDocumentMarkdown(doc *Document, transcript []TranscriptEntry) string 
 	return strings.Join(lines, "\n")
 }
 
-// FormatDate parses an ISO8601 timestamp and formats it as "YYYY-MM-DD HH:MM".
-// Returns "Unknown date" if parsing fails.
-func FormatDate(timestamp string) string {
+// parseTimestamp parses an ISO8601/RFC3339 timestamp using the formats Granola
+// emits. The bool reports whether parsing succeeded.
+func parseTimestamp(timestamp string) (time.Time, bool) {
 	if timestamp == "" {
-		return "Unknown date"
+		return time.Time{}, false
 	}
-
-	// Try parsing with various formats
 	formats := []string{
 		time.RFC3339,
 		time.RFC3339Nano,
 		"2006-01-02T15:04:05.000Z",
 		"2006-01-02T15:04:05Z",
 	}
-
-	var t time.Time
-	var err error
 	for _, format := range formats {
-		t, err = time.Parse(format, timestamp)
-		if err == nil {
-			break
+		if t, err := time.Parse(format, timestamp); err == nil {
+			return t, true
 		}
 	}
+	return time.Time{}, false
+}
 
-	if err != nil {
-		return "Unknown date"
+// FormatDate parses an ISO8601 timestamp and formats it as "YYYY-MM-DD HH:MM".
+// Returns "Unknown date" if parsing fails.
+func FormatDate(timestamp string) string {
+	if t, ok := parseTimestamp(timestamp); ok {
+		return t.Format("2006-01-02 15:04")
 	}
-
-	return t.Format("2006-01-02 15:04")
+	return "Unknown date"
 }
 
 // FormatDateForFilename parses an ISO8601 timestamp and formats it as "YYYY-MM-DD".
 // Returns "unknown-date" if parsing fails.
 func FormatDateForFilename(timestamp string) string {
-	if timestamp == "" {
-		return "unknown-date"
+	if t, ok := parseTimestamp(timestamp); ok {
+		return t.Format("2006-01-02")
 	}
-
-	formats := []string{
-		time.RFC3339,
-		time.RFC3339Nano,
-		"2006-01-02T15:04:05.000Z",
-		"2006-01-02T15:04:05Z",
-	}
-
-	var t time.Time
-	var err error
-	for _, format := range formats {
-		t, err = time.Parse(format, timestamp)
-		if err == nil {
-			break
-		}
-	}
-
-	if err != nil {
-		return "unknown-date"
-	}
-
-	return t.Format("2006-01-02")
+	return "unknown-date"
 }
 
 // SourceToSpeaker maps a transcript source to a speaker label.
