@@ -21,7 +21,15 @@ checksum:
   name_template: 'checksums.txt'
 
 changelog:
+  use: github
   sort: asc
+  filters:
+    exclude:
+      - '^Merge pull request'
+      - '^Merge branch'
+      - '^docs:'
+      - '^chore:'
+      - '^test:'
 
 release:
   github:
