@@ -7,6 +7,46 @@ import (
 	"testing"
 )
 
+func TestExportFilePermissions(t *testing.T) {
+	t.Run("writes private transcript files 0600 in a 0700 directory", func(t *testing.T) {
+		tmpDir := filepath.Join(t.TempDir(), "out")
+		exp := NewExporter(tmpDir)
+
+		state := &CacheState{
+			Documents: map[string]Document{
+				"doc1": {ID: "doc1", Title: "Private Meeting", CreatedAt: "2026-01-21T10:00:00Z"},
+			},
+			Transcripts: map[string][]TranscriptEntry{
+				"doc1": {{Text: "sensitive", Source: "microphone"}},
+			},
+		}
+
+		if _, err := exp.Export(state, false); err != nil {
+			t.Fatalf("Export: %v", err)
+		}
+
+		dirInfo, err := os.Stat(tmpDir)
+		if err != nil {
+			t.Fatalf("stat dir: %v", err)
+		}
+		if perm := dirInfo.Mode().Perm(); perm != 0o700 {
+			t.Errorf("output dir perm = %o, want 700", perm)
+		}
+
+		entries, _ := os.ReadDir(tmpDir)
+		if len(entries) != 1 {
+			t.Fatalf("expected 1 exported file, got %d", len(entries))
+		}
+		fileInfo, err := os.Stat(filepath.Join(tmpDir, entries[0].Name()))
+		if err != nil {
+			t.Fatalf("stat file: %v", err)
+		}
+		if perm := fileInfo.Mode().Perm(); perm != 0o600 {
+			t.Errorf("transcript file perm = %o, want 600", perm)
+		}
+	})
+}
+
 func TestExporter(t *testing.T) {
 	t.Run("filters documents with transcripts", func(t *testing.T) {
 		tmpDir := t.TempDir()

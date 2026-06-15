@@ -1,8 +1,10 @@
 # Granary
 
-Exports meeting notes and transcripts from [Granola](https://www.granola.so)'s local cache to markdown files.
+Exports full meeting transcripts from [Granola](https://www.granola.so) to markdown files.
 
-Granary exports AI-generated notes and full transcripts to markdown. It auto-detects the latest Granola cache version, only writes changed files, and preserves transcripts even after Granola purges them from its cache. A built-in macOS LaunchAgent can run exports automatically every 2 hours.
+Granary fetches your meetings and their transcripts from Granola's API and writes one markdown file per meeting. It reads your existing Granola login from the app's local config (no separate sign-in), only writes changed files, and preserves previously exported transcripts. A built-in macOS LaunchAgent can run exports automatically every 2 hours.
+
+> **Heads up:** Granary now talks to Granola's private, undocumented API and uses your locally stored Granola access token. This is unsupported and can break at any time. Read [How it works](#-how-it-works) and [Caveats](#-caveats) before using it.
 
 ## 🛠️ Installation
 
@@ -20,13 +22,13 @@ go install github.com/wassimk/granary@latest
 
 ## 💻 Usage
 
-### Export meeting notes
+### Export transcripts
 
 ```bash
 granary run
 ```
 
-By default, Granary reads from `~/Library/Application Support/Granola/cache-v*.json` and exports markdown files to `~/.local/share/granola-transcripts/`. Each file is named `YYYY-MM-DD_Meeting_Title.md`.
+By default, Granary reads your Granola access token from `~/Library/Application Support/Granola/` (see [How it works](#-how-it-works)), fetches your meetings and transcripts from Granola's API, and exports markdown files to `~/.local/share/granola-transcripts/`. Each file is named `YYYY-MM-DD_Meeting_Title.md`.
 
 #### Options
 
@@ -61,11 +63,27 @@ granary version    # Show version
 granary help       # Show help
 ```
 
-## ⚠️ Transcript availability
+## ⚙️ How it works
 
-Granola does not keep all transcripts in its local cache. Transcripts are fetched from Granola's servers on demand when you open a meeting, and older ones are periodically purged. New meetings will have transcripts in cache after you view them in Granola, but previously viewed meetings may not.
+Granola encrypts its local cache and no longer stores meeting documents in a file Granary can read. To export your transcripts, Granary uses Granola's **private, undocumented API**:
 
-Once Granary exports a transcript, it preserves it permanently. On future runs it merges the latest AI notes with any previously exported transcript, so you never lose data.
+1. It reads your Granola access token from `~/Library/Application Support/Granola/supabase.json.enc`, decrypting it with the key from your macOS Keychain entry `Granola Safe Storage` (the same mechanism the Granola app uses). It falls back to the plaintext `supabase.json` if present.
+2. It calls `https://api.granola.ai` to list your meetings (`/v2/get-documents`) and fetch each meeting's transcript (`/v1/get-document-transcript`), sending your token as a bearer credential and a client-version header derived from your installed Granola app.
+3. It writes one markdown file per meeting to the output directory.
+
+Granary only requests transcript data; it does not export Granola's AI-generated notes.
+
+## ⚠️ Caveats
+
+Please understand these before relying on Granary:
+
+- **Unofficial API.** `api.granola.ai` is private and undocumented. Granola can change, restrict, or remove it at any time with no warning, which will break Granary. This project is not affiliated with Granola (see [Disclaimer](#-disclaimer)).
+- **Uses your credentials.** Granary reads your Granola access token from disk and sends it to Granola's servers. It only ever accesses your own account and your own data, and the token is never written to logs or output, but you are using your login outside the official app.
+- **Network on every run.** Each `granary run` makes one API call to list meetings (paginated) plus one call per meeting to fetch its transcript. With many meetings that is many requests per run — including each automatic LaunchAgent run every 2 hours.
+- **Token expiry.** If your token has expired, Granary fails with a clear message. There is no refresh endpoint — open the Granola app to sign in again, then re-run.
+- **Client-version header.** Granola may reject requests that don't carry a recognized client version. Granary sends your installed app's version (or a built-in fallback); if Granola tightens this check, requests may start failing.
+- **macOS only.** Granary depends on the macOS Keychain and Granola's macOS file locations.
+- **Terms of service.** Using an undocumented API may conflict with Granola's terms. Use Granary responsibly, only with your own account, and at your own risk.
 
 ## 📄 Output format
 
@@ -76,18 +94,14 @@ Meeting ID: abc-123
 
 ---
 
-## AI-Generated Notes
-
-[Granola's AI-generated meeting notes and summaries]
-
----
-
 ## Transcript
 
 **Me:** [Your words]
 
 **Them:** [Other participant's words]
 ```
+
+Once Granary exports a transcript, it preserves it: on future runs it keeps any previously exported transcript if the API returns nothing for that meeting, so you never lose data.
 
 ## 📝 Disclaimer
 

@@ -16,7 +16,7 @@ var version = "dev"
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "granary",
-		Short: "Export Granola meeting notes and transcripts to markdown",
+		Short: "Export Granola meeting transcripts to markdown",
 	}
 
 	// run
@@ -96,28 +96,29 @@ func main() {
 }
 
 func runExport(outputDir string) error {
-	cachePath, err := exporter.FindCacheFile()
+	supportDir, err := exporter.GranolaSupportDir()
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Loading cache from: %s\n", cachePath)
-
-	cacheSize, err := exporter.GetCacheSize(cachePath)
+	token, err := exporter.AccessToken(supportDir)
 	if err != nil {
-		return fmt.Errorf("failed to get cache size: %w", err)
+		return err
 	}
-	cacheSizeMB := float64(cacheSize) / 1024.0 / 1024.0
-	fmt.Printf("Cache size: %.1f MB\n\n", cacheSizeMB)
 
-	fmt.Println("Parsing cache...")
-	state, err := exporter.LoadCache(cachePath)
+	client := &exporter.APIClient{
+		BaseURL: exporter.DefaultAPIBaseURL,
+		Token:   token,
+		Version: exporter.GranolaClientVersion(),
+	}
+
+	fmt.Printf("Fetching documents and transcripts from Granola API (client %s)...\n", client.Version)
+	state, err := client.FetchState()
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf("Found %d documents\n", len(state.Documents))
-	fmt.Printf("Found %d shared documents\n", len(state.SharedDocuments))
 	fmt.Printf("Found %d transcripts\n\n", len(state.Transcripts))
 
 	exp := exporter.NewExporter(outputDir)
