@@ -12,9 +12,6 @@ builds:
     binary: granary
     ldflags:
       - -s -w -X main.version={{.Version}}
-    hooks:
-      post:
-        - cmd: 'codesign --force --options runtime --sign "Developer ID Application: Wassim Metallaoui ({{ .Env.APPLE_TEAM_ID }})" "{{ .Path }}"'
 
 archives:
   - formats: ["tar.gz"]
@@ -26,23 +23,7 @@ checksum:
 changelog:
   sort: asc
 
-brews:
-  - repository:
-      owner: wassimk
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
+release:
+  github:
+    owner: skorten
     name: granary
-    description: "Export Granola meeting notes and transcripts to markdown"
-    homepage: "https://github.com/wassimk/granary"
-    license: "MIT"
-    install: |
-      bin.install "granary"
-    caveats: |
-      To start granary as a background service (exports every 2 hours):
-        granary install
-
-      To remove the background service:
-        granary uninstall
-    test: |
-      assert_match version.to_s, shell_output("#{bin}/granary version")

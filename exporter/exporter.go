@@ -32,10 +32,11 @@ func NewExporter(outputDir string) *Exporter {
 	return &Exporter{OutputDir: outputDir}
 }
 
-// DefaultOutputDir returns the default output directory path.
+// DefaultOutputDir returns the default output directory path. It lives under
+// ~/Documents so it is easy to find in Finder.
 func DefaultOutputDir() string {
 	homeDir, _ := os.UserHomeDir()
-	return filepath.Join(homeDir, ".local", "share", "granola-transcripts")
+	return filepath.Join(homeDir, "Documents", "Granola Transcripts")
 }
 
 // Export exports all exportable documents from the cache state.

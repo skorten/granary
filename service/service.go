@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const Label = "com.wassimk.granary"
+const Label = "com.skorten.granary"
 
 func PlistPath() string {
 	home, _ := os.UserHomeDir()
@@ -93,12 +93,12 @@ func Install(force bool) error {
 		return fmt.Errorf("launchctl bootstrap failed: %s", strings.TrimSpace(string(out)))
 	}
 
-	fmt.Println("LaunchAgent installed and loaded.")
-	fmt.Printf("  Label: %s\n", Label)
-	fmt.Printf("  Plist: %s\n", plist)
-	fmt.Printf("  Logs:  %s\n", LogDir())
+	fmt.Println("Done. Granary will now back up your Granola transcripts automatically")
+	fmt.Println("every 2 hours, in the background, while your Mac is on.")
 	fmt.Println()
-	fmt.Println("The service will run `granary run` every 2 hours.")
+	fmt.Println("  To check it's set up:  granary status")
+	fmt.Println("  To turn it off:        granary uninstall")
+	fmt.Printf("  Logs are saved in:     %s\n", LogDir())
 	return nil
 }
 

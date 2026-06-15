@@ -17,7 +17,7 @@ import (
 // Granola encrypts its cache using the Electron safeStorage scheme (Chromium
 // OSCrypt on macOS). The data encryption key (DEK) is wrapped in storage.dek and
 // protected by a passphrase held in the macOS Keychain. See:
-// https://github.com/wassimk/granary/issues/13
+// https://github.com/skorten/granary/issues/13
 const (
 	// keychainService and keychainAccount identify the Keychain entry that holds
 	// the safeStorage passphrase.
@@ -60,7 +60,7 @@ func defaultKeychainSecret() (string, error) {
 func decryptCache(encPath string) ([]byte, error) {
 	password, err := keychainSecret()
 	if err != nil {
-		return nil, fmt.Errorf("Granola's cache is encrypted and the decryption key could not be read from the macOS Keychain entry %q: %w\nSee https://github.com/wassimk/granary/issues/13", keychainService, err)
+		return nil, fmt.Errorf("couldn't read Granola's login from your Mac's Keychain. Make sure the Granola app is installed and you've signed in at least once, then try again (details: %w)", err)
 	}
 
 	dekPath := filepath.Join(filepath.Dir(encPath), dekFileName)

@@ -1,4 +1,4 @@
-module github.com/wassimk/granary
+module github.com/skorten/granary
 
 go 1.25.6
 
