@@ -10,13 +10,15 @@ into an encrypted SQLite DB that can't be read offline, so Granary fetches
 documents and transcripts from Granola's **private, undocumented HTTP API**
 (`https://api.granola.ai`) using the access token stored locally by the Granola
 app. AI-generated notes are intentionally **not** exported. Module:
-`github.com/wassimk/granary`. Background: GitHub issue #13.
+`github.com/skorten/granary`. Independent fork (no upstream remote); background:
+GitHub issue #13. In maintenance mode — v0.4.0 is intended as the final release
+unless a bug is reported.
 
 ## Commands
 
 ```bash
 go build ./...                       # build all packages (CI gate)
-go run . run                         # run an export against the live Granola API
+go run .                             # run an export against the live Granola API (bare command == `run`)
 go test ./...                        # run all tests
 go test ./exporter -run TestName     # run a single test
 go test ./exporter -run TestAPIClientFetchState -v
@@ -26,9 +28,13 @@ GOOS=linux GOARCH=amd64 go build ./...   # CI builds on Linux; keep it compiling
 There is no separate lint step; CI runs `go build -v ./...` then the test suite
 (`.github/workflows/ci.yml`) **on Linux**. The macOS-specific code (Keychain via
 `security`, `defaults`, `launchctl`) compiles on Linux and only fails at runtime,
-so keep everything cross-compiling. Releases are cut by GoReleaser
-(`.goreleaser.yaml`): darwin amd64/arm64 only, code-signed, published to the
-`wassimk/homebrew-tap` Homebrew tap. `version` is injected via `-ldflags -X main.version=`.
+so keep everything cross-compiling. Releases are free, **unsigned** GitHub
+Releases cut by GoReleaser (`.goreleaser.yaml`) on a `v*` tag via
+`.github/workflows/release.yml` (runs on `ubuntu-latest`, uses only the
+auto-provided `GITHUB_TOKEN`): darwin amd64/arm64 archives, no Apple signing or
+notarization, no Homebrew tap. `version` is injected via `-ldflags -X main.version=`.
+Unsigned binaries trigger macOS Gatekeeper; the README documents the one-time
+`xattr -d com.apple.quarantine` workaround.
 
 ## Architecture
 
@@ -38,7 +44,7 @@ Layers wired together in `main.go` (cobra commands: `run`, `install`,
 
 - **`exporter/`** — token recovery, the API client, and the markdown export logic.
 - **`service/`** — macOS LaunchAgent management via `launchctl bootstrap`/`bootout`.
-  Generates a plist (`com.wassimk.granary`) with `StartInterval 7200` (2 hours).
+  Generates a plist (`com.skorten.granary`) with `StartInterval 7200` (2 hours).
 - **`main.go`** — CLI wiring and `runExport` console output.
 
 ### Token recovery (`api.go` + `safestorage.go`)
@@ -87,7 +93,8 @@ ID (`document.go`); `AllDocuments()` merges with owned taking precedence.
   inverses (`microphone`↔`Me`, `system`↔`Them`), and on the `**Speaker:** text`
   format matching `transcriptEntryRegex`.
 - **Filename collisions**: `buildFilenameMap` appends an 8-char ID suffix when
-  title+date collide. Default output dir: `~/.local/share/granola-transcripts/`.
+  title+date collide. Default output dir: `~/Documents/Granola Transcripts/`
+  (Finder-visible). Files are written `0600` in a `0700` directory.
 
 ## Constraints
 
