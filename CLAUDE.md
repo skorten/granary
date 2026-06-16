@@ -44,7 +44,9 @@ Layers wired together in `main.go` (cobra commands: `run`, `install`,
 
 - **`exporter/`** — token recovery, the API client, and the markdown export logic.
 - **`service/`** — macOS LaunchAgent management via `launchctl bootstrap`/`bootout`.
-  Generates a plist (`com.skorten.granary`) with `StartInterval 7200` (2 hours).
+  Generates a plist (`com.skorten.granary`) with `StartCalendarInterval` set to a
+  randomized time in `[00:00, 03:00)` local (overridable via `granary install --at HH:MM`).
+  launchd runs a missed job at next wake if the Mac was asleep at the scheduled time.
 - **`main.go`** — CLI wiring and `runExport` console output.
 
 ### Token recovery (`api.go` + `safestorage.go`)
@@ -73,6 +75,12 @@ consumes), so all the formatting/filename/preservation logic is reused unchanged
   `Authorization: Bearer`, `User-Agent: Granola/<ver>`, `X-Client-Version: <ver>`
   where `<ver>` comes from `GranolaClientVersion()` (installed app version, with a
   fallback const).
+- **Incremental fetch**: `FetchState` skips transcripts already saved complete on
+  disk unless `ForceAll` is set (`run --all`) or the output directory is empty
+  (first-run backfill). When the output dir is missing/empty it fetches all
+  meetings; otherwise it only fetches meetings newer than `recencyWindow` (7 days)
+  plus any marked partial. New fields on `APIClient`: `OutputDir string`,
+  `ForceAll bool`. Skip/partial logic lives in `exporter/incremental.go`.
 - **Resilience**: a failed transcript fetch is logged and skipped so one error
   doesn't discard the run; `ErrUnauthorized` (401/403) is fatal and aborts, since
   a token problem affects every request.
@@ -92,6 +100,11 @@ ID (`document.go`); `AllDocuments()` merges with owned taking precedence.
   `SourceToSpeaker` (`formatter.go`) and `SpeakerToSource` (`extractor.go`) being
   inverses (`microphone`↔`Me`, `system`↔`Them`), and on the `**Speaker:** text`
   format matching `transcriptEntryRegex`.
+- **Partial marker**: non-final transcript entries are written with a
+  `<!--granary:partial-->` comment after the speaker prefix. Absence of the
+  marker means the entry is complete. The incremental skip logic in
+  `exporter/incremental.go` keys off this marker to decide whether a saved
+  transcript needs re-fetching.
 - **Filename collisions**: `buildFilenameMap` appends an 8-char ID suffix when
   title+date collide. Default output dir: `~/Documents/Granola Transcripts/`
   (Finder-visible). Files are written `0600` in a `0700` directory.

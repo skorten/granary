@@ -84,8 +84,8 @@ Just notes, no transcript.
 			CreatedAt: "2026-01-21T10:00:00Z",
 		}
 		originalTranscript := []TranscriptEntry{
-			{Text: "Hello from me", Source: "microphone"},
-			{Text: "Hello from them", Source: "system"},
+			{Text: "Hello from me", Source: "microphone", IsFinal: true},
+			{Text: "Hello from them", Source: "system", IsFinal: true},
 		}
 
 		formatted := FormatDocumentMarkdown(doc, originalTranscript)

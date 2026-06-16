@@ -17,6 +17,7 @@ var version = "dev"
 func main() {
 	var outputDir string
 	var openAfter bool
+	var forceAll bool
 
 	rootCmd := &cobra.Command{
 		Use:   "granary",
@@ -26,33 +27,37 @@ func main() {
 		// Bare `granary` runs the export, so a first-time user doesn't have to
 		// discover the `run` subcommand.
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runExport(resolveOutputDir(outputDir), openAfter)
+			return runExport(resolveOutputDir(outputDir), openAfter, forceAll)
 		},
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
 	rootCmd.PersistentFlags().StringVarP(&outputDir, "output-dir", "o", "", "Folder to save transcripts in (default: ~/Documents/Granola Transcripts)")
 	rootCmd.PersistentFlags().BoolVar(&openAfter, "open", false, "Open the transcripts folder in Finder when done")
+	rootCmd.Flags().BoolVar(&forceAll, "all", false, "Re-download every transcript, ignoring what's already saved")
 
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Download and export your transcripts",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runExport(resolveOutputDir(outputDir), openAfter)
+			return runExport(resolveOutputDir(outputDir), openAfter, forceAll)
 		},
 	}
+	runCmd.Flags().BoolVar(&forceAll, "all", false, "Re-download every transcript, ignoring what's already saved")
 	rootCmd.AddCommand(runCmd)
 
 	// install
 	var force bool
+	var atTime string
 	installCmd := &cobra.Command{
 		Use:   "install",
-		Short: "Set up automatic exports every 2 hours (macOS background task)",
+		Short: "Set up automatic daily exports (macOS background task)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return service.Install(force)
+			return service.Install(force, atTime)
 		},
 	}
 	installCmd.Flags().BoolVar(&force, "force", false, "Replace an existing background task")
+	installCmd.Flags().StringVar(&atTime, "at", "", "Daily run time as HH:MM, 24-hour (default: a random time between 00:00 and 03:00)")
 	rootCmd.AddCommand(installCmd)
 
 	// uninstall
@@ -103,7 +108,7 @@ func resolveOutputDir(outputDir string) string {
 	return outputDir
 }
 
-func runExport(outputDir string, openAfter bool) error {
+func runExport(outputDir string, openAfter bool, forceAll bool) error {
 	// First-run preamble: explain plainly what is about to happen the first time,
 	// before any credentials are touched.
 	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
@@ -124,9 +129,11 @@ func runExport(outputDir string, openAfter bool) error {
 	}
 
 	client := &exporter.APIClient{
-		BaseURL: exporter.DefaultAPIBaseURL,
-		Token:   token,
-		Version: exporter.GranolaClientVersion(),
+		BaseURL:   exporter.DefaultAPIBaseURL,
+		Token:     token,
+		Version:   exporter.GranolaClientVersion(),
+		OutputDir: outputDir,
+		ForceAll:  forceAll,
 	}
 
 	fmt.Println("Connecting to Granola and downloading your transcripts...")
@@ -162,9 +169,9 @@ func runExport(outputDir string, openAfter bool) error {
 func printStatus(installed, running bool) {
 	switch {
 	case installed && running:
-		fmt.Println("Automatic exports: ON — Granary backs up your transcripts every 2 hours.")
+		fmt.Println("Automatic exports: ON — Granary backs up your transcripts once a day.")
 	case installed:
-		fmt.Println("Automatic exports: set up but not currently running (it runs every 2 hours).")
+		fmt.Println("Automatic exports: set up but not currently running (it runs once a day).")
 	default:
 		fmt.Println("Automatic exports: OFF. Run `granary install` to turn them on.")
 	}

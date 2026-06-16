@@ -104,6 +104,13 @@ type APIClient struct {
 	// HTTPClient is optional; if nil a default client is created once per
 	// FetchState so connections are reused across the many transcript requests.
 	HTTPClient *http.Client
+
+	// OutputDir, when set, enables incremental fetch: transcripts already saved
+	// (complete) on disk are not re-downloaded. Empty disables the skip logic
+	// (fetch everything) — used by tests.
+	OutputDir string
+	// ForceAll bypasses the skip logic and fetches every transcript.
+	ForceAll bool
 }
 
 // apiDocument is the subset of a get-documents result we care about. Granola's
@@ -160,16 +167,37 @@ func (c *APIClient) FetchState() (*CacheState, error) {
 		}
 	}
 
-	// Fetch each document's transcript in a stable order for reproducible output.
+	// Decide which documents actually need a transcript fetch. This keeps the
+	// daily run bounded to new and still-partial transcripts instead of
+	// re-downloading the whole corpus every time.
+	filenameMap := buildFilenameMap(state.allDocumentSlice())
+	backfill := c.ForceAll || c.OutputDir == "" || !hasExportedFiles(c.OutputDir)
+	now := time.Now()
+
 	ids := make([]string, 0, len(state.Documents))
 	for id := range state.Documents {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
 
+	var toFetch []string
+	var alreadyComplete int
+	for _, id := range ids {
+		if backfill {
+			toFetch = append(toFetch, id)
+			continue
+		}
+		filePath := filepath.Join(c.OutputDir, filenameMap[id])
+		if shouldFetchTranscript(filePath, state.Documents[id].CreatedAt, now) {
+			toFetch = append(toFetch, id)
+		} else {
+			alreadyComplete++
+		}
+	}
+
 	var skipped int
-	total := len(ids)
-	for i, id := range ids {
+	total := len(toFetch)
+	for i, id := range toFetch {
 		fmt.Fprintf(os.Stderr, "\rDownloading transcripts... %d/%d", i+1, total)
 		segs, err := c.fetchTranscript(id)
 		if err != nil {
@@ -187,6 +215,9 @@ func (c *APIClient) FetchState() (*CacheState, error) {
 	}
 	if total > 0 {
 		fmt.Fprintln(os.Stderr) // finish the progress line
+	}
+	if alreadyComplete > 0 {
+		fmt.Fprintf(os.Stderr, "%d transcript(s) already saved (skipped download)\n", alreadyComplete)
 	}
 	if skipped > 0 {
 		fmt.Fprintf(os.Stderr, "warning: %d transcript(s) could not be downloaded and were skipped\n", skipped)

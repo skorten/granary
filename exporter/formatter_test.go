@@ -43,8 +43,8 @@ func TestFormatDocumentMarkdown(t *testing.T) {
 			CreatedAt: "2026-01-21T10:00:00Z",
 		}
 		transcript := []TranscriptEntry{
-			{Text: "Hello from system", Source: "system"},
-			{Text: "Hello from mic", Source: "microphone"},
+			{Text: "Hello from system", Source: "system", IsFinal: true},
+			{Text: "Hello from mic", Source: "microphone", IsFinal: true},
 		}
 
 		result := FormatDocumentMarkdown(doc, transcript)
@@ -98,8 +98,8 @@ func TestFormatDocumentMarkdown(t *testing.T) {
 			CreatedAt: "2026-01-21T10:00:00Z",
 		}
 		transcript := []TranscriptEntry{
-			{Text: "From microphone", Source: "microphone"},
-			{Text: "From system", Source: "system"},
+			{Text: "From microphone", Source: "microphone", IsFinal: true},
+			{Text: "From system", Source: "system", IsFinal: true},
 		}
 
 		result := FormatDocumentMarkdown(doc, transcript)
@@ -173,7 +173,7 @@ func TestFormatDocumentMarkdown(t *testing.T) {
 			CreatedAt: "2026-01-21T10:00:00Z",
 		}
 		transcript := []TranscriptEntry{
-			{Text: "Hello", Source: "speaker1"},
+			{Text: "Hello", Source: "speaker1", IsFinal: true},
 		}
 
 		result := FormatDocumentMarkdown(doc, transcript)
@@ -208,6 +208,42 @@ func TestFormatDocumentMarkdown(t *testing.T) {
 			t.Error("Expected 'Untitled' for empty title")
 		}
 	})
+}
+
+func TestFormatDocumentMarkdownPartialMarker(t *testing.T) {
+	doc := &Document{ID: "x", Title: "T", CreatedAt: "2026-01-21T10:00:00Z"}
+	transcript := []TranscriptEntry{
+		{Text: "done speaking", Source: "microphone", IsFinal: true},
+		{Text: "still typing", Source: "system", IsFinal: false},
+	}
+
+	result := FormatDocumentMarkdown(doc, transcript)
+
+	if !strings.Contains(result, "**Me:** done speaking") {
+		t.Error("final entry should have no marker")
+	}
+	if strings.Contains(result, "**Me:** "+partialMarker) {
+		t.Error("final entry must not be marked partial")
+	}
+	if !strings.Contains(result, "**Them:** "+partialMarker+" still typing") {
+		t.Errorf("non-final entry should carry the partial marker, got:\n%s", result)
+	}
+}
+
+func TestParseTimestamp(t *testing.T) {
+	if _, ok := parseTimestamp(""); ok {
+		t.Error("empty string should not parse")
+	}
+	if _, ok := parseTimestamp("not-a-date"); ok {
+		t.Error("garbage should not parse")
+	}
+	got, ok := parseTimestamp("2026-01-21T20:30:01.410Z")
+	if !ok {
+		t.Fatal("expected RFC3339-with-millis to parse")
+	}
+	if got.Year() != 2026 || got.Month() != 1 || got.Day() != 21 {
+		t.Errorf("parsed wrong date: %v", got)
+	}
 }
 
 func TestFormatDate(t *testing.T) {

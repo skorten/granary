@@ -265,3 +265,35 @@ Meeting ID: doc1
 		}
 	})
 }
+
+func TestExportFilenameMapUsesAllDocuments(t *testing.T) {
+	// Two documents share title+date; only one is exportable (has a transcript).
+	// Mapping over all documents must still give the exportable one an
+	// ID-suffixed (collision) name, so it lines up with the skip check.
+	tmpDir := t.TempDir()
+	exp := NewExporter(tmpDir)
+
+	state := &CacheState{
+		Documents: map[string]Document{
+			"aaaaaaaa-0000": {ID: "aaaaaaaa-0000", Title: "Sync", CreatedAt: "2026-01-21T10:00:00Z"},
+			"bbbbbbbb-1111": {ID: "bbbbbbbb-1111", Title: "Sync", CreatedAt: "2026-01-21T15:00:00Z"},
+		},
+		Transcripts: map[string][]TranscriptEntry{
+			"aaaaaaaa-0000": {{Text: "hi", Source: "microphone", IsFinal: true}},
+		},
+	}
+
+	if _, err := exp.Export(state, false); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+
+	want := "2026-01-21_Sync (aaaaaaaa).md"
+	if _, err := os.Stat(filepath.Join(tmpDir, want)); err != nil {
+		entries, _ := os.ReadDir(tmpDir)
+		var names []string
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Errorf("expected collision-suffixed file %q; got %v", want, names)
+	}
+}
