@@ -49,7 +49,7 @@ func main() {
 		Use:   "install",
 		Short: "Set up automatic exports every 2 hours (macOS background task)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return service.Install(force)
+			return service.Install(force, "")
 		},
 	}
 	installCmd.Flags().BoolVar(&force, "force", false, "Replace an existing background task")
