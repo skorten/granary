@@ -6,8 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // newMockGranola returns an httptest server that emulates the two Granola API
@@ -188,4 +191,100 @@ func TestAPIClientPartialTranscriptFailure(t *testing.T) {
 			t.Errorf("expected ErrUnauthorized, got: %v", err)
 		}
 	})
+}
+
+// recordingGranola is like newMockGranola but records which document_ids had
+// their transcript requested.
+func recordingGranola(t *testing.T, docs []map[string]any, transcripts map[string][]map[string]any) (*httptest.Server, *[]string) {
+	t.Helper()
+	var requested []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		switch r.URL.Path {
+		case "/v2/get-documents":
+			var req struct {
+				Offset int `json:"offset"`
+			}
+			json.Unmarshal(body, &req)
+			if req.Offset > 0 {
+				json.NewEncoder(w).Encode(map[string]any{"docs": []map[string]any{}})
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{"docs": docs})
+		case "/v1/get-document-transcript":
+			var req struct {
+				DocumentID string `json:"document_id"`
+			}
+			json.Unmarshal(body, &req)
+			requested = append(requested, req.DocumentID)
+			segs := transcripts[req.DocumentID]
+			if segs == nil {
+				segs = []map[string]any{}
+			}
+			json.NewEncoder(w).Encode(segs)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv, &requested
+}
+
+func TestFetchStateSkipsExisting(t *testing.T) {
+	// d1 already saved (complete file on disk), d2 brand new today.
+	today := time.Now().UTC().Format(time.RFC3339)
+	docs := []map[string]any{
+		{"id": "d1", "title": "Old", "created_at": "2026-01-01T10:00:00Z"},
+		{"id": "d2", "title": "New", "created_at": today},
+	}
+	transcripts := map[string][]map[string]any{
+		"d1": {{"text": "hi", "source": "microphone", "is_final": true}},
+		"d2": {{"text": "yo", "source": "microphone", "is_final": true}},
+	}
+	srv, requested := recordingGranola(t, docs, transcripts)
+
+	outDir := t.TempDir()
+	// Pre-create d1's complete file (no partial marker) under its mapped name.
+	os.WriteFile(filepath.Join(outDir, "2026-01-01_Old.md"),
+		[]byte("## Transcript\n\n**Me:** hi\n"), 0600)
+
+	client := &APIClient{
+		BaseURL:    srv.URL,
+		Token:      "t",
+		Version:    "7",
+		HTTPClient: srv.Client(),
+		PageSize:   100,
+		OutputDir:  outDir,
+	}
+
+	if _, err := client.FetchState(); err != nil {
+		t.Fatalf("FetchState: %v", err)
+	}
+
+	if len(*requested) != 1 || (*requested)[0] != "d2" {
+		t.Errorf("expected only d2 to be fetched, got %v", *requested)
+	}
+}
+
+func TestFetchStateForceAllFetchesEverything(t *testing.T) {
+	docs := []map[string]any{
+		{"id": "d1", "title": "Old", "created_at": "2026-01-01T10:00:00Z"},
+	}
+	transcripts := map[string][]map[string]any{
+		"d1": {{"text": "hi", "source": "microphone", "is_final": true}},
+	}
+	srv, requested := recordingGranola(t, docs, transcripts)
+
+	outDir := t.TempDir()
+	os.WriteFile(filepath.Join(outDir, "2026-01-01_Old.md"),
+		[]byte("## Transcript\n\n**Me:** hi\n"), 0600)
+
+	client := &APIClient{
+		BaseURL: srv.URL, Token: "t", Version: "7", HTTPClient: srv.Client(),
+		PageSize: 100, OutputDir: outDir, ForceAll: true,
+	}
+	if _, err := client.FetchState(); err != nil {
+		t.Fatalf("FetchState: %v", err)
+	}
+	if len(*requested) != 1 {
+		t.Errorf("ForceAll should fetch d1 despite its file, got %v", *requested)
+	}
 }
