@@ -55,6 +55,18 @@ func (d *Document) HasExportableContent(transcripts map[string][]TranscriptEntry
 	return false
 }
 
+// allDocumentSlice returns every document (owned + shared) as a slice. Used to
+// compute filenames over the full set so the writer and the fetch skip-check
+// agree on each document's filename.
+func (s *CacheState) allDocumentSlice() []Document {
+	all := s.AllDocuments()
+	docs := make([]Document, 0, len(all))
+	for _, d := range all {
+		docs = append(docs, d)
+	}
+	return docs
+}
+
 // GetNotes returns the best available notes content.
 // Prefers notes_markdown, falls back to notes_plain.
 func (d *Document) GetNotes() string {

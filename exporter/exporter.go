@@ -62,8 +62,9 @@ func (e *Exporter) Export(state *CacheState, verbose bool) (*ExportResult, error
 		fmt.Println(strings.Repeat("=", 70))
 	}
 
-	// Build filename map: assign unique filenames using document ID for collisions
-	filenameMap := buildFilenameMap(exportable)
+	// Build filename map over ALL documents (not just exportable ones) so the
+	// names match what FetchState's skip-check computes.
+	filenameMap := buildFilenameMap(state.allDocumentSlice())
 
 	// Export each document
 	for _, doc := range exportable {
