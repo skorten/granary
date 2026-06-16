@@ -6,6 +6,25 @@ Each meeting becomes one file named like `2026-05-14_Team Standup.md`, saved in 
 
 > Granary is a small command-line tool. You'll need to open the **Terminal** app and type a couple of commands. If you've never used Terminal, that's okay — the steps below tell you exactly what to type.
 
+## Why granary instead of the Granola MCP?
+
+Granola offers an MCP server that lets an AI assistant query your meetings and
+transcripts on demand. That is great for asking questions in the moment, but it
+is a different tool for a different job:
+
+| | Granola MCP | granary |
+|---|---|---|
+| Where your transcripts live | In Granola's cloud; fetched per request | Plain `.md` files on your own disk |
+| Reading them | Through an AI assistant, online | Any tool — grep, an editor, your own scripts, any LLM |
+| Cost to read | Spends AI tokens/round-trips each time | Free; they're just local files |
+| Works offline | No | Yes, once exported |
+| If you leave Granola | Access goes away | You keep the archive |
+
+Use the MCP when you want to *ask Granola questions live*. Use granary when you
+want to *own a durable, local, plain-text copy* of your transcripts that any
+tool can read without ongoing AI cost. The two are complementary — granary is
+your backup and your data, on your terms.
+
 ## ✅ Before you start
 
 - A Mac.
@@ -86,18 +105,34 @@ To use a different folder:
 granary -o ~/Desktop/My\ Transcripts
 ```
 
-### Run it automatically every 2 hours
+### Run it automatically every day
 
-Turn on automatic background backups:
+Turn on automatic background exports:
 
 ```bash
 granary install
 ```
 
-Then:
+By default, granary picks a random time between midnight and 3 AM and runs once a day at that time. If your Mac is asleep when the scheduled time arrives, it runs automatically the next time your Mac wakes up.
+
+To set a specific daily time instead (24-hour format):
 
 ```bash
-granary status      # check whether automatic backups are on
+granary install --at 02:30
+```
+
+You don't have to wait for the scheduled run — just run `granary` by hand any time to pull your latest transcripts immediately.
+
+To force a full re-download of every transcript (for example, if you want to refresh older meetings):
+
+```bash
+granary run --all
+```
+
+Granary only downloads new transcripts and any still in progress, so scheduled runs are fast and light on Granola's servers.
+
+```bash
+granary status      # check whether automatic exports are on
 granary uninstall   # turn them off
 ```
 
