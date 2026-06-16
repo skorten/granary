@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+// partialMarker is written immediately after the speaker prefix for transcript
+// entries that are not yet final. Its absence in a file means every entry is
+// final, i.e. the transcript is complete. The skip logic in incremental.go
+// keys off this marker.
+const partialMarker = "<!--granary:partial-->"
+
 // FormatDocumentMarkdown formats a document and its transcript as markdown.
 func FormatDocumentMarkdown(doc *Document, transcript []TranscriptEntry) string {
 	var lines []string
@@ -52,7 +58,11 @@ func FormatDocumentMarkdown(doc *Document, transcript []TranscriptEntry) string 
 			}
 
 			speaker := SourceToSpeaker(entry.Source)
-			lines = append(lines, fmt.Sprintf("**%s:** %s", speaker, text))
+			if entry.IsFinal {
+				lines = append(lines, fmt.Sprintf("**%s:** %s", speaker, text))
+			} else {
+				lines = append(lines, fmt.Sprintf("**%s:** %s %s", speaker, partialMarker, text))
+			}
 			lines = append(lines, "")
 		}
 	}
