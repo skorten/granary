@@ -243,8 +243,10 @@ func TestFetchStateSkipsExisting(t *testing.T) {
 
 	outDir := t.TempDir()
 	// Pre-create d1's complete file (no partial marker) under its mapped name.
-	os.WriteFile(filepath.Join(outDir, "2026-01-01_Old.md"),
-		[]byte("## Transcript\n\n**Me:** hi\n"), 0600)
+	if err := os.WriteFile(filepath.Join(outDir, "2026-01-01_Old.md"),
+		[]byte("## Transcript\n\n**Me:** hi\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	client := &APIClient{
 		BaseURL:    srv.URL,
@@ -274,8 +276,10 @@ func TestFetchStateForceAllFetchesEverything(t *testing.T) {
 	srv, requested := recordingGranola(t, docs, transcripts)
 
 	outDir := t.TempDir()
-	os.WriteFile(filepath.Join(outDir, "2026-01-01_Old.md"),
-		[]byte("## Transcript\n\n**Me:** hi\n"), 0600)
+	if err := os.WriteFile(filepath.Join(outDir, "2026-01-01_Old.md"),
+		[]byte("## Transcript\n\n**Me:** hi\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	client := &APIClient{
 		BaseURL: srv.URL, Token: "t", Version: "7", HTTPClient: srv.Client(),

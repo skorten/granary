@@ -35,7 +35,9 @@ func TestShouldFetchTranscript(t *testing.T) {
 
 	t.Run("complete file -> skip", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "doc.md")
-		os.WriteFile(path, []byte("## Transcript\n\n**Me:** all done\n"), 0600)
+		if err := os.WriteFile(path, []byte("## Transcript\n\n**Me:** all done\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
 		if shouldFetchTranscript(path, old, now) {
 			t.Error("file with no partial marker should be skipped")
 		}
@@ -43,7 +45,9 @@ func TestShouldFetchTranscript(t *testing.T) {
 
 	t.Run("partial file -> fetch", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "doc.md")
-		os.WriteFile(path, []byte("## Transcript\n\n**Me:** "+partialMarker+" mid-sentence\n"), 0600)
+		if err := os.WriteFile(path, []byte("## Transcript\n\n**Me:** "+partialMarker+" mid-sentence\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
 		if !shouldFetchTranscript(path, old, now) {
 			t.Error("file with a partial marker should be fetched")
 		}
@@ -63,7 +67,9 @@ func TestHasExportedFiles(t *testing.T) {
 	})
 	t.Run("dir with a .md -> true", func(t *testing.T) {
 		dir := t.TempDir()
-		os.WriteFile(filepath.Join(dir, "a.md"), []byte("x"), 0600)
+		if err := os.WriteFile(filepath.Join(dir, "a.md"), []byte("x"), 0600); err != nil {
+			t.Fatal(err)
+		}
 		if !hasExportedFiles(dir) {
 			t.Error("dir with a .md should report exported files")
 		}
