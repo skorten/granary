@@ -13,7 +13,7 @@ transcripts on demand. That is great for asking questions in the moment, but it
 is a different tool for a different job:
 
 | | Granola MCP | granary |
-|---|---|---|
+|---|---|---|---|
 | Where your transcripts live | In Granola's cloud; fetched per request | Plain `.md` files on your own disk |
 | Reading them | Through an AI assistant, online | Any tool — grep, an editor, your own scripts, any LLM |
 | Cost to read | Spends AI tokens/round-trips each time | Free; they're just local files |
@@ -129,7 +129,9 @@ To force a full re-download of every transcript (for example, if you want to ref
 granary run --all
 ```
 
-Granary only downloads new transcripts and any still in progress, so scheduled runs are fast and light on Granola's servers.
+(You can also write `granary --all` — they do the same thing.)
+
+By default, granary only downloads new transcripts and any still in progress, so scheduled runs are fast and light on Granola's servers.
 
 ```bash
 granary status      # check whether automatic exports are on
